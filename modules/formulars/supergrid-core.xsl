@@ -926,6 +926,132 @@
   </xsl:template>
 
   <!-- *************** -->
+  <!--     Select2     -->
+  <!-- *************** -->
+  <xsl:template match="Select2">
+
+    <xsl:element name="p">
+      <xsl:variable name="key">
+        <xsl:value-of select="@Key"/>
+      </xsl:variable>
+      <xsl:apply-templates select="/Form/Bindings/*[local-name(.) = 'Ajax' and contains(@Keys, $key)]">
+        <xsl:with-param name="key"><xsl:value-of select="$key"/></xsl:with-param>
+      </xsl:apply-templates>
+
+      <xsl:choose>
+        <xsl:when test="contains(@Params, 'ajax-url')">
+          <xt:use types="select2" label="{@Tag}" param="{@Params}"/>
+        </xsl:when>
+        <xsl:otherwise>
+          <!-- generate an extension point -->
+          <xsl:element name="xt:use">
+            <xsl:attribute name="types">
+              <xsl:text>select2</xsl:text>
+            </xsl:attribute>
+            <xsl:attribute name="label">
+              <xsl:value-of select="@Tag"/>
+            </xsl:attribute>
+            <xsl:attribute name="param">
+              <xsl:value-of select="@Params"/>
+            </xsl:attribute>
+            <xsl:attribute name="values">
+              <xsl:value-of select="@values"/>
+            </xsl:attribute>
+            <xsl:attribute name="default">
+              <xsl:value-of select="@default"/>
+            </xsl:attribute>
+            <xsl:attribute name="i18n">
+              <xsl:value-of select="@i18n"/>
+            </xsl:attribute>
+          </xsl:element>
+        </xsl:otherwise>
+      </xsl:choose>
+
+    </xsl:element>
+
+    <!-- for each item in the <Values> tag, espace spaces with a backslash -->
+    <!--<xsl:variable name="values">-->
+    <!--<xsl:for-each select="Values/item">-->
+    <!--<xsl:call-template name="string-replace">-->
+    <!--<xsl:with-param name="text" select="."/>-->
+    <!--<xsl:with-param name="replace" select='" "' />-->
+    <!--<xsl:with-param name="with" select='"\ "'/>-->
+    <!--</xsl:call-template>-->
+    <!--&lt;!&ndash; add a space after the value, unless this is the last value &ndash;&gt;-->
+    <!--<xsl:if test="not(position() = last())">-->
+    <!--<xsl:text> </xsl:text>-->
+    <!--</xsl:if>-->
+    <!--</xsl:for-each>-->
+    <!--</xsl:variable>-->
+
+    <!-- the same processing, for the i18n items -->
+    <!--<xsl:variable name="i18n">-->
+    <!--<xsl:for-each select="i18n/item">-->
+    <!--<xsl:call-template name="string-replace">-->
+    <!--<xsl:with-param name="text" select="."/>-->
+    <!--<xsl:with-param name="replace" select='" "' />-->
+    <!--<xsl:with-param name="with" select='"\ "'/>-->
+    <!--</xsl:call-template>-->
+    <!--<xsl:if test="not(position() = last())">-->
+    <!--<xsl:text> </xsl:text>-->
+    <!--</xsl:if>-->
+    <!--</xsl:for-each>-->
+    <!--</xsl:variable>-->
+
+    <!--<xsl:variable name="def-val">-->
+    <!--<xsl:call-template name="string-replace">-->
+    <!--<xsl:with-param name="text" select="Values/item[@default]"/>-->
+    <!--<xsl:with-param name="replace" select='" "' />-->
+    <!--<xsl:with-param name="with" select='"\ "'/>-->
+    <!--</xsl:call-template>-->
+    <!--</xsl:variable>-->
+
+    <!--<xsl:element name="{concat('xt:', @XTtype)}">-->
+    <!--<xsl:attribute name="types">-->
+    <!--<xsl:text>select2</xsl:text>-->
+    <!--</xsl:attribute>-->
+    <!--<xsl:attribute name="label">-->
+    <!--<xsl:value-of select="@Tag"/>-->
+    <!--</xsl:attribute>-->
+    <!--<xsl:attribute name="param">-->
+    <!--<xsl:value-of select="@Params"/>-->
+    <!--</xsl:attribute>-->
+    <!--<xsl:attribute name="values">-->
+    <!--<xsl:value-of select="$values"/>-->
+    <!--</xsl:attribute>-->
+    <!--<xsl:attribute name="default">-->
+    <!--<xsl:value-of select="$def-val"/>-->
+    <!--</xsl:attribute>-->
+    <!--<xsl:attribute name="i18n">-->
+    <!--<xsl:value-of select="$i18n"/>-->
+    <!--</xsl:attribute>-->
+    <!--</xsl:element>-->
+  </xsl:template>
+
+  <!-- a rule that replaces all occurrences of a substring within a string by another string -->
+  <!-- http://stackoverflow.com/questions/7711654/xslt-replace-single-quotes-by -->
+  <!-- with XSLT 2.0, we could use fn:replace instead, it would be much simpler -->
+  <xsl:template name="string-replace">
+    <xsl:param name="text"/>
+    <xsl:param name="replace"/>
+    <xsl:param name="with"/>
+    <xsl:choose>
+      <xsl:when test="contains($text, $replace)">
+        <xsl:value-of select="substring-before($text, $replace)"/>
+        <xsl:value-of select="$with"/>
+        <xsl:call-template name="string-replace">
+          <xsl:with-param name="text" select="substring-after($text, $replace)"/>
+          <xsl:with-param name="replace" select="$replace"/>
+          <xsl:with-param name="with" select="$with"/>
+        </xsl:call-template>
+      </xsl:when>
+      <xsl:otherwise>
+        <xsl:value-of select="$text"/>
+      </xsl:otherwise>
+    </xsl:choose>
+  </xsl:template>
+
+  <!-- *************** -->
   <!--     Constant    -->
   <!-- *************** -->
 
