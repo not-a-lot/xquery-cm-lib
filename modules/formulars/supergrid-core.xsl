@@ -935,62 +935,65 @@
       <xsl:value-of select="/Form/Bindings/*[local-name(.) = 'Ajax' and contains(@Keys, @Key)]"/>
     </xsl:variable>
 
+    <!-- TODO : allow separate wrapper elements (different names) for source and target ? -->
+    <xsl:variable name="wrapperElement">
+      <xsl:value-of select="/Form/Bindings/*[local-name(.) = 'Ajax' and contains(@Keys, @Key)]/@Wrapper"/>
+    </xsl:variable>
+
     <xsl:choose>
       <xsl:when test="$bindingNode">
-        <xsl:element name="p">
-          <xsl:apply-templates select="$bindingNode">
+        <xsl:element name="{$wrapperElement}"> <!-- This is the element that wraps the drop-down lists
+        in case the Ajax binding is used (doesn't seem to work without one) -->
+          <!-- using a variable as the select param of apply-templates doesn't work; -->
+          <!-- at least, it doesn't seem possible in plain XSLT 1.0 -->
+          <!-- You can't construct XPath dynamically in XSLT (at least, not XSLT 1.0). -->
+          <!-- http://stackoverflow.com/a/3885071 -->
+          <xsl:apply-templates select="/Form/Bindings/*[local-name(.) = 'Ajax' and contains(@Keys, @Key)]">
             <xsl:with-param name="key"><xsl:value-of select="@Key"/></xsl:with-param>
           </xsl:apply-templates>
 
-          <xsl:call-template name="select2-inner-element"/>
-
+          <xsl:choose>
+            <!-- 1. Select2 ajax is used. This shouldn't be used on a target
+            (dependent) node, since this isn't compatible with the ajax binding -->
+            <xsl:when test="contains(@Params, 'ajax-url')">
+              <xt:use types="select2" label="{@Tag}" param="{@Params}"/>
+            </xsl:when>
+            <!-- 2. When no 'values' attribute is provided -->
+            <xsl:when test="not(@values)">
+              <xsl:choose>
+                <!-- 2a. If the S2 node is the master node of the binding,
+                generate an extension point (? check) -->
+                <!-- FIXME : again, it doesn't seem to be possible to use the $bindingNode variable instead in the test here. -->
+                <xsl:when test="/Form/Bindings/*[local-name(.) = 'Ajax' and contains(@Keys, @Key)]/@Source = @Key">
+                  <site:select2 force="true" Key="{@Key}" Tag="{@Tag}"/>
+                </xsl:when>
+                <!-- 2b. If it's a target node,
+                generate an xt:use element -->
+                <xsl:otherwise>
+                  <xt:use types="select2" label="{@Tag}" param="{@Params}"/>
+                </xsl:otherwise>
+              </xsl:choose>
+            </xsl:when>
+            <!-- 3. If there are values, generate an xt:use element -->
+            <xsl:otherwise>
+              <xt:use types="select2" label="{@Tag}" values="{@values}" default="{@default}" i18n="{@i18n}" param="{@Params}"/>
+            </xsl:otherwise>
+          </xsl:choose>
         </xsl:element>
       </xsl:when>
       <xsl:otherwise>
-        <xsl:call-template name="select2-inner-element"/>
+        <xsl:call-template name="select2-no-binding"/>
       </xsl:otherwise>
     </xsl:choose>
 
-    <!--<xsl:element name="p">-->
-      <!--<xsl:variable name="key">-->
-        <!--<xsl:value-of select="@Key"/>-->
-      <!--</xsl:variable>-->
-      <!--<xsl:apply-templates select="/Form/Bindings/*[local-name(.) = 'Ajax' and contains(@Keys, $key)]">-->
-        <!--<xsl:with-param name="key"><xsl:value-of select="$key"/></xsl:with-param>-->
-      <!--</xsl:apply-templates>-->
+    <!-- The purpose of the commented code below is to support usage of :
+      1.  <Values><item>...</item><item>...</item></Values> tags and
+          <i18n><item>...</item><item>...</item></i18n> tags
+          to specify the values *inside* a Select2 Supergrid element
+      2.  XTtype = "use|attribute" attribute on a Select2 Supergrid element
+    -->
 
-      <!--<xsl:choose>-->
-        <!--<xsl:when test="contains(@Params, 'ajax-url')">-->
-          <!--<xt:use types="select2" label="{@Tag}" param="{@Params}"/>-->
-        <!--</xsl:when>-->
-        <!--<xsl:otherwise>-->
-          <!--&lt;!&ndash; generate an extension point &ndash;&gt;-->
-          <!--<xsl:element name="xt:use">-->
-            <!--<xsl:attribute name="types">-->
-              <!--<xsl:text>select2</xsl:text>-->
-            <!--</xsl:attribute>-->
-            <!--<xsl:attribute name="label">-->
-              <!--<xsl:value-of select="@Tag"/>-->
-            <!--</xsl:attribute>-->
-            <!--<xsl:attribute name="param">-->
-              <!--<xsl:value-of select="@Params"/>-->
-            <!--</xsl:attribute>-->
-            <!--<xsl:attribute name="values">-->
-              <!--<xsl:value-of select="@values"/>-->
-            <!--</xsl:attribute>-->
-            <!--<xsl:attribute name="default">-->
-              <!--<xsl:value-of select="@default"/>-->
-            <!--</xsl:attribute>-->
-            <!--<xsl:attribute name="i18n">-->
-              <!--<xsl:value-of select="@i18n"/>-->
-            <!--</xsl:attribute>-->
-          <!--</xsl:element>-->
-        <!--</xsl:otherwise>-->
-      <!--</xsl:choose>-->
-
-    <!--</xsl:element>-->
-
-    <!-- for each item in the <Values> tag, espace spaces with a backslash -->
+    <!--&lt;!&ndash;for each item in the <Values> tag, espace spaces with a backslash &ndash;&gt;-->
     <!--<xsl:variable name="values">-->
     <!--<xsl:for-each select="Values/item">-->
     <!--<xsl:call-template name="string-replace">-->
@@ -1049,7 +1052,7 @@
     <!--</xsl:element>-->
   </xsl:template>
 
-  <xsl:template name="select2-inner-element">
+  <xsl:template name="select2-no-binding">
     <xsl:choose>
       <!-- 1. Select2 ajax is used -->
       <xsl:when test="contains(@Params, 'ajax-url')">
@@ -1057,7 +1060,7 @@
       </xsl:when>
       <!-- 2. When no 'values' attribute is provided, generate an extension point -->
       <xsl:when test="not(@values)">
-        <site:select2 force="true" Key="{@Key}" Tag="@{Tag}"/>
+        <site:select2 force="true" Key="{@Key}" Tag="{@Tag}"/>
       </xsl:when>
       <!-- 3. If there are values, generate an xt:use element -->
       <xsl:otherwise>
