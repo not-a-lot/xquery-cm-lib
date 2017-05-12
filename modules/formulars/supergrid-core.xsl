@@ -930,26 +930,33 @@
   <!-- *************** -->
   <xsl:template match="Select2">
 
-    <!-- First check if there is an ajax binding -->
-    <xsl:variable name="bindingNode">
-      <xsl:value-of select="/Form/Bindings/*[local-name(.) = 'Ajax' and contains(@Keys, @Key)]"/>
+    <xsl:variable name="key">
+      <xsl:value-of select="@Key"/>
     </xsl:variable>
+
+    <!-- First check if there is an ajax binding -->
+    <!--<xsl:variable name="bindingNode">-->
+      <!--<xsl:value-of select="/Form/Bindings/*[local-name(.) = 'Ajax' and contains(@Keys, $key)]"/>-->
+    <!--</xsl:variable>-->
 
     <!-- TODO : allow separate wrapper elements (different names) for source and target ? -->
     <xsl:variable name="wrapperElement">
-      <xsl:value-of select="/Form/Bindings/*[local-name(.) = 'Ajax' and contains(@Keys, @Key)]/@Wrapper"/>
+      <xsl:value-of select="/Form/Bindings/*[local-name(.) = 'Ajax' and contains(@Keys, $key)]/@Wrapper"/>
     </xsl:variable>
 
     <xsl:choose>
-      <xsl:when test="$bindingNode">
+      <!-- $key != '' because if there is no Key attribute on the Select2 elem, $key will be an empty
+      string and contains(@Keys, $key) will always be true ! -->
+      <!-- test always true if we use @Key instead of a variable ? -->
+      <xsl:when test="$key != '' and /Form/Bindings/*[local-name(.) = 'Ajax' and contains(@Keys, $key)]">
         <xsl:element name="{$wrapperElement}"> <!-- This is the element that wraps the drop-down lists
         in case the Ajax binding is used (doesn't seem to work without one) -->
           <!-- using a variable as the select param of apply-templates doesn't work; -->
           <!-- at least, it doesn't seem possible in plain XSLT 1.0 -->
           <!-- You can't construct XPath dynamically in XSLT (at least, not XSLT 1.0). -->
           <!-- http://stackoverflow.com/a/3885071 -->
-          <xsl:apply-templates select="/Form/Bindings/*[local-name(.) = 'Ajax' and contains(@Keys, @Key)]">
-            <xsl:with-param name="key"><xsl:value-of select="@Key"/></xsl:with-param>
+          <xsl:apply-templates select="/Form/Bindings/*[local-name(.) = 'Ajax' and contains(@Keys, $key)]">
+            <xsl:with-param name="key"><xsl:value-of select="$key"/></xsl:with-param>
           </xsl:apply-templates>
 
           <xsl:choose>
@@ -964,8 +971,8 @@
                 <!-- 2a. If the S2 node is the master node of the binding,
                 generate an extension point (? check) -->
                 <!-- FIXME : again, it doesn't seem to be possible to use the $bindingNode variable instead in the test here. -->
-                <xsl:when test="/Form/Bindings/*[local-name(.) = 'Ajax' and contains(@Keys, @Key)]/@Source = @Key">
-                  <site:select2 force="true" Key="{@Key}" Tag="{@Tag}"/>
+                <xsl:when test="/Form/Bindings/*[local-name(.) = 'Ajax' and contains(@Keys, $key)]/@Source = $key">
+                  <site:select2 force="true" Key="{$key}" Tag="{@Tag}" param="{@Params}"/>
                 </xsl:when>
                 <!-- 2b. If it's a target node,
                 generate an xt:use element -->
@@ -1060,7 +1067,7 @@
       </xsl:when>
       <!-- 2. When no 'values' attribute is provided, generate an extension point -->
       <xsl:when test="not(@values)">
-        <site:select2 force="true" Key="{@Key}" Tag="{@Tag}"/>
+        <site:select2 force="true" Key="{@Key}" Tag="{@Tag}" param="{@Params}"/>
       </xsl:when>
       <!-- 3. If there are values, generate an xt:use element -->
       <xsl:otherwise>
