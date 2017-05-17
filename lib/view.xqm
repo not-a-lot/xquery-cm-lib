@@ -46,6 +46,57 @@ declare function local:append-param( $var as xs:string, $val as xs:string?, $str
 };
 
 (: ======================================================================
+   Add parameter (tested ✔)
+   -------------------
+   Appends a new parameter ";name=value" to a list of params if the name
+   of the new parameter isn't already in the list
+
+   @param params xs:string - a string of "name=value" parameters separated by semi-colons
+   @param paramToAdd xs:string - the "name=value" parameter to append
+   @returns xs:string - the new string of parameters with the paramToAdd appended
+
+   ======================================================================
+:)
+declare function local:add-param($params as xs:string, $paramToAdd as xs:string) as xs:string {
+  if($params eq '') then
+    $paramToAdd
+  else
+    let $newParamName := substring-before($paramToAdd, '=')
+    return
+      if (contains($params, $newParamName)) then
+        $params
+      else
+        concat($params, ';', $paramToAdd)
+};
+
+(: ======================================================================
+   Parameter add loop (tested ✔)
+   -------------------
+   Recursively appends new parameters
+   ======================================================================
+:)
+declare function local:add-loop($acc as xs:string, $paramsToAdd as xs:string*) as xs:string {
+  if (empty($paramsToAdd)) then
+    $acc
+  else
+    let $newAcc := local:add-param($acc, $paramsToAdd[1])
+    return local:add-loop($newAcc, $paramsToAdd[position() != 1])
+
+};
+
+(: ======================================================================
+   Merge parameters (tested ✔)
+   -------------------
+   Merges the source parameters with the view parameters. If a parameter
+   name is present in both strings, the value of the view param is kept
+   ======================================================================
+:)
+declare function local:mergeParams($sourceParams as xs:string, $viewParams as xs:string) as xs:string {
+  let $sourceParamSeq := tokenize($sourceParams, ';')
+  return local:add-loop($viewParams, $sourceParamSeq)
+};
+
+(: ======================================================================
    Typeswitch function
    -------------------
    Filters loc and {name}-loc attributes to localize content using a dictionary
@@ -235,6 +286,38 @@ declare function view:field( $cmd as element(), $source as element(), $view as e
         else
           (: plain constant field (no id, no appended symbol) :)
           <xt:use types="constant" label="{$source/@Tag}" param="class=uneditable-input span a-control"/>
+};
+
+declare function view:select2($cmd as element(), $source as element(), $view as element()*) as element()* {
+  let $goal := request:get-parameter('goal', 'read')
+  return
+    if (($source/@avoid = $goal) or ($source/@meet and not($source/@meet = $goal))) then
+      ()
+    else if ($source[@filter = 'copy']) then (: field directly generated from Supergrid :)
+      let $params := data($source/@param)
+      let $finalParams := if ($goal = 'read') then
+        local:add-param($params, 'read-only=yes') else $params
+      return
+        <xt:use types="select2"> {
+        (: copy all params except filter, force, Key and param :)
+          $source/@*[local-name() != 'filter' and local-name() != 'force' and local-name() != 'Key' and local-name() != 'param'],
+          attribute {"param"} {$finalParams} (: then add param, possibly with 'read-only=yes' added :)
+        }
+        </xt:use>
+    else (: need to read data from the model :)
+      let $sourceKey := data($source/@Key)
+      let $sourceParams := data($source/@param)
+      let $viewParamsData := data($view/@Param)
+      let $viewParams := if (empty($viewParamsData)) then '' else $viewParamsData
+      let $viewParamsRead := if ($goal eq 'read') then
+        local:add-param($viewParams, 'read-only=yes') else $viewParams
+      let $xtUse := $view/site:select2[@Key = $sourceKey]/xt:use
+      return element xt:use {
+        attribute {"types"} {"select2"},
+        attribute {"label"} {$source/@Tag},
+        attribute {"param"} {local:mergeParams($sourceParams, $viewParamsRead)},
+        $xtUse/(@values|@default|@i18n)
+      }
 };
 
 (: ======================================================================
