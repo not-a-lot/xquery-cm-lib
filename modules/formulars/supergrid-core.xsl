@@ -963,27 +963,25 @@
             <!-- 1. Select2 ajax is used. This shouldn't be used on a target
             (dependent) node, since this isn't compatible with the ajax binding -->
             <xsl:when test="contains(@Params, 'ajax-url')">
-              <xt:use types="select2" label="{@Tag}" param="{@Params}"/>
+              <site:select2 filter="copy" force="true" label="{@Tag}" param="{@Params}"/>
             </xsl:when>
             <!-- 2. When no 'values' attribute is provided -->
             <xsl:when test="not(@values)">
               <xsl:choose>
-                <!-- 2a. If the S2 node is the master node of the binding,
-                generate an extension point (? check) -->
+                <!-- 2a. If the S2 node is the master node of the binding (should test this case) -->
                 <!-- FIXME : again, it doesn't seem to be possible to use the $bindingNode variable instead in the test here. -->
                 <xsl:when test="/Form/Bindings/*[local-name(.) = 'Ajax' and contains(@Keys, $key)]/@Source = $key">
                   <site:select2 force="true" Key="{$key}" Tag="{@Tag}" param="{@Params}"/>
                 </xsl:when>
-                <!-- 2b. If it's a target node,
-                generate an xt:use element -->
+                <!-- 2b. If it's a target node, copy -->
                 <xsl:otherwise>
-                  <xt:use types="select2" label="{@Tag}" param="{@Params}"/>
+                  <site:select2 filter="copy" force="true" label="{@Tag}" param="{@Params}"/>
                 </xsl:otherwise>
               </xsl:choose>
             </xsl:when>
-            <!-- 3. If there are values, generate an xt:use element -->
+            <!-- 3. If there are values, use the filter="copy" param -->
             <xsl:otherwise>
-              <xt:use types="select2" label="{@Tag}" values="{@values}" default="{@default}" i18n="{@i18n}" param="{@Params}"/>
+              <site:select2 filter="copy" force="true" label="{@Tag}" values="{@values}" default="{@default}" i18n="{@i18n}" param="{@Params}"/>
             </xsl:otherwise>
           </xsl:choose>
         </xsl:element>
@@ -1063,15 +1061,16 @@
     <xsl:choose>
       <!-- 1. Select2 ajax is used -->
       <xsl:when test="contains(@Params, 'ajax-url')">
-        <xt:use types="select2" label="{@Tag}" param="{@Params}"/>
+        <site:select2 filter="copy" force="true" label="{@Tag}" param="{@Params}"/>
       </xsl:when>
-      <!-- 2. When no 'values' attribute is provided, generate an extension point -->
+      <!-- 2. When no 'values' attribute is provided, will get them from the model -->
       <xsl:when test="not(@values)">
         <site:select2 force="true" Key="{@Key}" Tag="{@Tag}" param="{@Params}"/>
       </xsl:when>
-      <!-- 3. If there are values, generate an xt:use element -->
+      <!-- 3. If there are values, use the filter="copy" (to indicate that the attributes
+       should be copied) param and force="true" (must go through the view:select2 function) -->
       <xsl:otherwise>
-        <xt:use types="select2" label="{@Tag}" values="{@values}" default="{@default}" i18n="{@i18n}" param="{@Params}"/>
+        <site:select2 filter="copy" force="true" label="{@Tag}" values="{@values}" default="{@default}" i18n="{@i18n}" param="{@Params}"/>
       </xsl:otherwise>
     </xsl:choose>
   </xsl:template>
