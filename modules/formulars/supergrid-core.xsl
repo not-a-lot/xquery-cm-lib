@@ -928,68 +928,215 @@
   <!-- *************** -->
   <!--     Select2     -->
   <!-- *************** -->
+
   <xsl:template match="Select2">
-
-    <xsl:variable name="key">
-      <xsl:value-of select="@Key"/>
-    </xsl:variable>
-
-    <!-- First check if there is an ajax binding -->
-    <!--<xsl:variable name="bindingNode">-->
-      <!--<xsl:value-of select="/Form/Bindings/*[local-name(.) = 'Ajax' and contains(@Keys, $key)]"/>-->
-    <!--</xsl:variable>-->
-
-    <!-- TODO : allow separate wrapper elements (different names) for source and target ? -->
-    <xsl:variable name="wrapperElement">
-      <xsl:value-of select="/Form/Bindings/*[local-name(.) = 'Ajax' and contains(@Keys, $key)]/@Wrapper"/>
-    </xsl:variable>
-
-    <xsl:choose>
-      <!-- $key != '' because if there is no Key attribute on the Select2 elem, $key will be an empty
-      string and contains(@Keys, $key) will always be true ! -->
-      <!-- test always true if we use @Key instead of a variable ? -->
-      <xsl:when test="$key != '' and /Form/Bindings/*[local-name(.) = 'Ajax' and contains(@Keys, $key)]">
-        <xsl:element name="{$wrapperElement}"> <!-- This is the element that wraps the drop-down lists
-        in case the Ajax binding is used (doesn't seem to work without one) -->
-          <!-- using a variable as the select param of apply-templates doesn't work; -->
-          <!-- at least, it doesn't seem possible in plain XSLT 1.0 -->
-          <!-- You can't construct XPath dynamically in XSLT (at least, not XSLT 1.0). -->
-          <!-- http://stackoverflow.com/a/3885071 -->
-          <xsl:apply-templates select="/Form/Bindings/*[local-name(.) = 'Ajax' and contains(@Keys, $key)]">
+    <xsl:variable name="key"><xsl:value-of select="@Key"/></xsl:variable>
+    <xsl:variable name="tag"><xsl:value-of select="@Tag"/></xsl:variable>
+    <xsl:variable name="offset"><xsl:if test="@Offset">offset<xsl:value-of select="concat(@Offset,' ')"/></xsl:if></xsl:variable>
+    <xsl:variable name="W"><xsl:choose><xsl:when test="@W"><xsl:value-of select="@W"/></xsl:when><xsl:otherwise>12</xsl:otherwise></xsl:choose></xsl:variable>
+    <xsl:variable name="gap"><xsl:if test="floor(@Gap) = @Gap"><xsl:value-of select="@Gap"/></xsl:if></xsl:variable>
+    <xsl:variable name="align"><xsl:if test="@Align">;text-align:<xsl:value-of select="@Align"/></xsl:if></xsl:variable>
+    <div class="{$offset}span{$W}">
+      <xsl:call-template name="margin-left"/>
+      <div class="control-group">
+        <label class="control-label a-gap{$gap}">
+          <xsl:copy-of select="@loc"/>
+          <xsl:if test="$gap = ''">
+            <xsl:attribute name="style"><xsl:value-of select="concat(concat(concat('width:', @Gap * 60),'px'), $align)"/></xsl:attribute>
+          </xsl:if>
+          <xsl:value-of select="."/> <!-- This line simply copies the text inside the Select2 element to use it as a label -->
+          <!-- This would be incompatible with the declaration mechanism which puts the values and i18n inside the
+          Select2 tag -->
+          <xsl:apply-templates select="/Form/Hints/Mandatory[contains(@Tags, $tag)]">
             <xsl:with-param name="key"><xsl:value-of select="$key"/></xsl:with-param>
           </xsl:apply-templates>
+          <xsl:apply-templates select="/Form/Hints/Hint[contains(@Keys, $key)]"/>
+        </label>
+        <div class="controls">
+          <xsl:apply-templates select="@Class"/>
+          <xsl:apply-templates select="/Form/Hints/Mandatory[contains(@Tags, $tag)]" mode="pre">
+            <xsl:with-param name="key"><xsl:value-of select="$key"/></xsl:with-param>
+          </xsl:apply-templates>
+          <xsl:if test="$gap = ''">
+            <xsl:attribute name="style"><xsl:value-of select="concat(concat('margin-left:', @Gap * 60 + 20),'px')"/></xsl:attribute>
+          </xsl:if>
+
+          <!-- add the attributes for the Ajax binding, if present -->
+          <!-- $key != '' because if there is no Key attribute on the Select2 elem, $key will be an empty
+            string and contains(@Keys, $key) will always be true ! -->
+          <!-- It seems that contains is always true if we use @Key instead of a variable -->
+          <xsl:if test="$key != ''">
+            <xsl:apply-templates select="/Form/Bindings/*[local-name(.) = 'Ajax' and contains(@Keys, $key)]">
+              <xsl:with-param name="key"><xsl:value-of select="$key"/></xsl:with-param>
+            </xsl:apply-templates>
+          </xsl:if>
 
           <xsl:choose>
-            <!-- 1. Select2 ajax is used. This shouldn't be used on a target
-            (dependent) node, since this isn't compatible with the ajax binding -->
-            <xsl:when test="contains(@Params, 'ajax-url')">
-              <site:select2 filter="copy" force="true" label="{@Tag}" param="{@Params}"/>
-            </xsl:when>
-            <!-- 2. When no 'values' attribute is provided -->
-            <xsl:when test="not(@values)">
+            <!-- when there is an Ajax binding -->
+            <xsl:when test="$key != '' and /Form/Bindings/*[local-name(.) = 'Ajax' and contains(@Keys, $key)]">
               <xsl:choose>
-                <!-- 2a. If the S2 node is the master node of the binding (should test this case) -->
-                <!-- FIXME : again, it doesn't seem to be possible to use the $bindingNode variable instead in the test here. -->
-                <xsl:when test="/Form/Bindings/*[local-name(.) = 'Ajax' and contains(@Keys, $key)]/@Source = $key">
-                  <site:select2 force="true" Key="{$key}" Tag="{@Tag}" param="{@Params}"/>
+                <!-- 1. Select2 ajax is used. This shouldn't be used on a target
+                (dependent) node, since this isn't compatible with the ajax binding -->
+                <xsl:when test="contains(@Params, 'ajax-url')">
+                  <site:select2 filter="copy" force="true" Size="{number($W) - number(@Gap)}" label="{@Tag}" param="{@Params}">
+                    <xsl:call-template name="select2-inner-attr">
+                      <xsl:with-param name="tag"><xsl:value-of select="$tag"/></xsl:with-param>
+                      <xsl:with-param name="key"><xsl:value-of select="$key"/></xsl:with-param>
+                    </xsl:call-template>
+                  </site:select2>
                 </xsl:when>
-                <!-- 2b. If it's a target node, copy -->
+                <!-- 2. When no 'values' attribute is provided -->
+                <xsl:when test="not(@values)">
+                  <xsl:choose>
+                    <!-- 2a. If the S2 node is the master node of the binding (should test this case) -->
+                    <xsl:when test="/Form/Bindings/*[local-name(.) = 'Ajax' and contains(@Keys, $key)]/@Source = $key">
+                      <site:select2 force="true" Size="{number($W) - number(@Gap)}" Key="{$key}" Tag="{@Tag}" param="{@Params}">
+                        <xsl:call-template name="select2-inner-attr">
+                          <xsl:with-param name="tag"><xsl:value-of select="$tag"/></xsl:with-param>
+                          <xsl:with-param name="key"><xsl:value-of select="$key"/></xsl:with-param>
+                        </xsl:call-template>
+                      </site:select2>
+                    </xsl:when>
+                    <!-- 2b. If it's a target node, copy -->
+                    <xsl:otherwise>
+                      <site:select2 filter="copy" force="true" Size="{number($W) - number(@Gap)}" label="{@Tag}" param="{@Params}">
+                        <xsl:call-template name="select2-inner-attr">
+                          <xsl:with-param name="tag"><xsl:value-of select="$tag"/></xsl:with-param>
+                          <xsl:with-param name="key"><xsl:value-of select="$key"/></xsl:with-param>
+                        </xsl:call-template>
+                      </site:select2>
+                    </xsl:otherwise>
+                  </xsl:choose>
+                </xsl:when>
+                <!-- 3. If there are values, use the filter="copy" param -->
                 <xsl:otherwise>
-                  <site:select2 filter="copy" force="true" label="{@Tag}" param="{@Params}"/>
+                  <site:select2 filter="copy" force="true" Size="{number($W) - number(@Gap)}" label="{@Tag}" values="{@values}" default="{@default}" i18n="{@i18n}" param="{@Params}">
+                    <xsl:call-template name="select2-inner-attr">
+                      <xsl:with-param name="tag"><xsl:value-of select="$tag"/></xsl:with-param>
+                      <xsl:with-param name="key"><xsl:value-of select="$key"/></xsl:with-param>
+                    </xsl:call-template>
+                  </site:select2>
                 </xsl:otherwise>
               </xsl:choose>
             </xsl:when>
-            <!-- 3. If there are values, use the filter="copy" param -->
+
+            <!-- no Ajax binding -->
             <xsl:otherwise>
-              <site:select2 filter="copy" force="true" label="{@Tag}" values="{@values}" default="{@default}" i18n="{@i18n}" param="{@Params}"/>
+              <xsl:choose>
+                <!-- 1. Select2 ajax is used -->
+                <xsl:when test="contains(@Params, 'ajax-url')">
+                  <site:select2 filter="copy" force="true" Size="{number($W) - number(@Gap)}" label="{@Tag}" param="{@Params}">
+                    <xsl:call-template name="select2-inner-attr">
+                      <xsl:with-param name="tag"><xsl:value-of select="$tag"/></xsl:with-param>
+                      <xsl:with-param name="key"><xsl:value-of select="$key"/></xsl:with-param>
+                    </xsl:call-template>
+                  </site:select2>
+                </xsl:when>
+                <!-- 2. When no 'values' attribute is provided, will get them from the model -->
+                <xsl:when test="not(@values)">
+                  <site:select2 force="true" Size="{number($W) - number(@Gap)}" Key="{@Key}" Tag="{@Tag}" param="{@Params}">
+                    <xsl:call-template name="select2-inner-attr">
+                      <xsl:with-param name="tag"><xsl:value-of select="$tag"/></xsl:with-param>
+                      <xsl:with-param name="key"><xsl:value-of select="$key"/></xsl:with-param>
+                    </xsl:call-template>
+                  </site:select2>
+                </xsl:when>
+                <!-- 3. If there are values, use the filter="copy" (to indicate that the attributes
+                 should be copied) param and force="true" (must go through the view:select2 function) -->
+                <xsl:otherwise>
+                  <site:select2 filter="copy" force="true" Size="{number($W) - number(@Gap)}" label="{@Tag}" values="{@values}" default="{@default}" i18n="{@i18n}" param="{@Params}">
+                    <xsl:call-template name="select2-inner-attr">
+                      <xsl:with-param name="tag"><xsl:value-of select="$tag"/></xsl:with-param>
+                      <xsl:with-param name="key"><xsl:value-of select="$key"/></xsl:with-param>
+                    </xsl:call-template>
+                  </site:select2>
+                </xsl:otherwise>
+              </xsl:choose>
             </xsl:otherwise>
           </xsl:choose>
-        </xsl:element>
-      </xsl:when>
-      <xsl:otherwise>
-        <xsl:call-template name="select2-no-binding"/>
-      </xsl:otherwise>
-    </xsl:choose>
+        </div>
+      </div>
+    </div>
+  </xsl:template>
+
+  <xsl:template name="select2-inner-attr">
+    <xsl:param name="tag"/>
+    <xsl:param name="key"/>
+    <xsl:copy-of select="@Placeholder-loc"/>
+    <xsl:if test="/Form/Hints/Mandatory[contains(@Tags, $tag)]">
+      <xsl:attribute name="Filter">event</xsl:attribute>
+    </xsl:if>
+    <xsl:if test="/Form/Bindings/Require[contains(@Keys, $key)]">
+      <xsl:attribute name="Required">true</xsl:attribute>
+    </xsl:if>
+    <xsl:value-of select="@Key"/>[<xsl:value-of select="@Tag"/>,<xsl:value-of select="number(@W) - number(@Gap)"/>]
+  </xsl:template>
+
+
+  <!-- OLDER VERSION (WORKING) WITHOUT W and Gap BELOW -->
+
+  <!--<xsl:template match="Select2">-->
+
+    <!--<xsl:variable name="key">-->
+      <!--<xsl:value-of select="@Key"/>-->
+    <!--</xsl:variable>-->
+
+    <!--&lt;!&ndash; First check if there is an ajax binding &ndash;&gt;-->
+    <!--&lt;!&ndash;<xsl:variable name="bindingNode">&ndash;&gt;-->
+      <!--&lt;!&ndash;<xsl:value-of select="/Form/Bindings/*[local-name(.) = 'Ajax' and contains(@Keys, $key)]"/>&ndash;&gt;-->
+    <!--&lt;!&ndash;</xsl:variable>&ndash;&gt;-->
+
+    <!--&lt;!&ndash; TODO : allow separate wrapper elements (different names) for source and target ? &ndash;&gt;-->
+    <!--<xsl:variable name="wrapperElement">-->
+      <!--<xsl:value-of select="/Form/Bindings/*[local-name(.) = 'Ajax' and contains(@Keys, $key)]/@Wrapper"/>-->
+    <!--</xsl:variable>-->
+
+    <!--<xsl:choose>-->
+      <!--&lt;!&ndash; $key != '' because if there is no Key attribute on the Select2 elem, $key will be an empty-->
+      <!--string and contains(@Keys, $key) will always be true ! &ndash;&gt;-->
+      <!--&lt;!&ndash; test always true if we use @Key instead of a variable ? &ndash;&gt;-->
+      <!--<xsl:when test="$key != '' and /Form/Bindings/*[local-name(.) = 'Ajax' and contains(@Keys, $key)]">-->
+        <!--<xsl:element name="{$wrapperElement}"> &lt;!&ndash; This is the element that wraps the drop-down lists-->
+        <!--in case the Ajax binding is used (doesn't seem to work without one) &ndash;&gt;-->
+          <!--&lt;!&ndash; using a variable as the select param of apply-templates doesn't work; &ndash;&gt;-->
+          <!--&lt;!&ndash; at least, it doesn't seem possible in plain XSLT 1.0 &ndash;&gt;-->
+          <!--&lt;!&ndash; You can't construct XPath dynamically in XSLT (at least, not XSLT 1.0). &ndash;&gt;-->
+          <!--&lt;!&ndash; http://stackoverflow.com/a/3885071 &ndash;&gt;-->
+          <!--<xsl:apply-templates select="/Form/Bindings/*[local-name(.) = 'Ajax' and contains(@Keys, $key)]">-->
+            <!--<xsl:with-param name="key"><xsl:value-of select="$key"/></xsl:with-param>-->
+          <!--</xsl:apply-templates>-->
+
+          <!--<xsl:choose>-->
+            <!--&lt;!&ndash; 1. Select2 ajax is used. This shouldn't be used on a target-->
+            <!--(dependent) node, since this isn't compatible with the ajax binding &ndash;&gt;-->
+            <!--<xsl:when test="contains(@Params, 'ajax-url')">-->
+              <!--<site:select2 filter="copy" force="true" label="{@Tag}" param="{@Params}"/>-->
+            <!--</xsl:when>-->
+            <!--&lt;!&ndash; 2. When no 'values' attribute is provided &ndash;&gt;-->
+            <!--<xsl:when test="not(@values)">-->
+              <!--<xsl:choose>-->
+                <!--&lt;!&ndash; 2a. If the S2 node is the master node of the binding (should test this case) &ndash;&gt;-->
+                <!--&lt;!&ndash; FIXME : again, it doesn't seem to be possible to use the $bindingNode variable instead in the test here. &ndash;&gt;-->
+                <!--<xsl:when test="/Form/Bindings/*[local-name(.) = 'Ajax' and contains(@Keys, $key)]/@Source = $key">-->
+                  <!--<site:select2 force="true" Key="{$key}" Tag="{@Tag}" param="{@Params}"/>-->
+                <!--</xsl:when>-->
+                <!--&lt;!&ndash; 2b. If it's a target node, copy &ndash;&gt;-->
+                <!--<xsl:otherwise>-->
+                  <!--<site:select2 filter="copy" force="true" label="{@Tag}" param="{@Params}"/>-->
+                <!--</xsl:otherwise>-->
+              <!--</xsl:choose>-->
+            <!--</xsl:when>-->
+            <!--&lt;!&ndash; 3. If there are values, use the filter="copy" param &ndash;&gt;-->
+            <!--<xsl:otherwise>-->
+              <!--<site:select2 filter="copy" force="true" label="{@Tag}" values="{@values}" default="{@default}" i18n="{@i18n}" param="{@Params}"/>-->
+            <!--</xsl:otherwise>-->
+          <!--</xsl:choose>-->
+        <!--</xsl:element>-->
+      <!--</xsl:when>-->
+      <!--<xsl:otherwise>-->
+        <!--<xsl:call-template name="select2-no-binding"/>-->
+      <!--</xsl:otherwise>-->
+    <!--</xsl:choose>-->
 
     <!-- The purpose of the commented code below is to support usage of :
       1.  <Values><item>...</item><item>...</item></Values> tags and
@@ -1055,7 +1202,7 @@
     <!--<xsl:value-of select="$i18n"/>-->
     <!--</xsl:attribute>-->
     <!--</xsl:element>-->
-  </xsl:template>
+  <!--</xsl:template>-->
 
   <xsl:template name="select2-no-binding">
     <xsl:choose>
