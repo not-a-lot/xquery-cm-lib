@@ -46,27 +46,36 @@ declare function local:append-param( $var as xs:string, $val as xs:string?, $str
 };
 
 (: ======================================================================
-   Add parameter (tested ✔)
+   Add or replace a parameter (tested ✔)
    -------------------
    Appends a new parameter ";name=value" to a list of params if the name
-   of the new parameter isn't already in the list
+   of the new parameter isn't already in the list. If the the third argument,
+   replaceMode, is true, then the value of the parameter will be overwritten
+   if the parameter is already in the list.
 
    @param params xs:string - a string of "name=value" parameters separated by semi-colons
-   @param paramToAdd xs:string - the "name=value" parameter to append
-   @returns xs:string - the new string of parameters with the paramToAdd appended
+   @param paramToAdd xs:string - the "name=value" parameter to append or to replace
+   @returns xs:string - the new string of parameters with $paramToAddOrReplace
+   appended if $paramToAddOrReplace was not in $params. If $paramToAddOrReplace is already
+   in $params, returns $params if $replaceMode is false, and returns $params with the
+   updated value of $paramToAddOrReplace if $replaceMode is true.
 
    ======================================================================
 :)
-declare function local:add-param($params as xs:string, $paramToAdd as xs:string) as xs:string {
+declare function local:add-or-replace-param($params as xs:string, $paramToAddOrReplace as xs:string, $replaceMode as xs:boolean) as xs:string {
   if($params eq '') then
-    $paramToAdd
+    $paramToAddOrReplace
   else
-    let $newParamName := substring-before($paramToAdd, '=')
+    let $paramToAddOrReplaceName := substring-before($paramToAddOrReplace, '=')
     return
-      if (contains($params, $newParamName)) then
-        $params
+      if (contains($params, $paramToAddOrReplaceName)) then
+        if ($replaceMode) then
+          let $pattern := concat($paramToAddOrReplaceName, '=[^;]+')
+          return replace($params, $pattern, $paramToAddOrReplace)
+        else
+          $params
       else
-        concat($params, ';', $paramToAdd)
+        concat($params, ';', $paramToAddOrReplace)
 };
 
 (: ======================================================================
@@ -79,9 +88,8 @@ declare function local:add-loop($acc as xs:string, $paramsToAdd as xs:string*) a
   if (empty($paramsToAdd)) then
     $acc
   else
-    let $newAcc := local:add-param($acc, $paramsToAdd[1])
+    let $newAcc := local:add-or-replace-param($acc, $paramsToAdd[1], false())
     return local:add-loop($newAcc, $paramsToAdd[position() != 1])
-
 };
 
 (: ======================================================================
@@ -295,8 +303,10 @@ declare function view:select2($cmd as element(), $source as element(), $view as 
       ()
     else if ($source[@filter = 'copy']) then (: field directly generated from Supergrid :)
       let $params := data($source/@param)
+      (: Force the width param to 100% so that Select2 behaves well with Supergrid's layout system :)
+      let $paramsWithWidth := local:add-or-replace-param($params, 'width=100%', true())
       let $finalParams := if ($goal = 'read') then
-        local:add-param($params, 'read-only=yes') else $params
+        local:add-or-replace-param($paramsWithWidth, 'read-only=yes', false()) else $paramsWithWidth
       return
         <xt:use types="select2"> {
         (: copy all params except filter, force, Key and param :)
@@ -310,12 +320,14 @@ declare function view:select2($cmd as element(), $source as element(), $view as 
       let $viewParamsData := data($view/@Param)
       let $viewParams := if (empty($viewParamsData)) then '' else $viewParamsData
       let $viewParamsRead := if ($goal eq 'read') then
-        local:add-param($viewParams, 'read-only=yes') else $viewParams
+        local:add-or-replace-param($viewParams, 'read-only=yes', false()) else $viewParams
+      let $mergedParams := local:mergeParams($sourceParams, $viewParamsRead)
+      let $finalParams := local:add-or-replace-param($mergedParams, 'width=100%', true())
       let $xtUse := $view/site:select2[@Key = $sourceKey]/xt:use
       return element xt:use {
         attribute {"types"} {"select2"},
         attribute {"label"} {$source/@Tag},
-        attribute {"param"} {local:mergeParams($sourceParams, $viewParamsRead)},
+        attribute {"param"} {$finalParams},
         $xtUse/(@values|@default|@i18n)
       }
 };
