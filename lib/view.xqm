@@ -33,7 +33,7 @@ declare variable $view:kick-out-delay := 5;
    (e.g. local:insert-param("a=b;c=d"; "a"; "e") returns "a=b e;c=d"
    ====================================================================== 
 :)
-declare function local:append-param( $var as xs:string, $val as xs:string?, $str as xs:string? ) as xs:string? {
+declare function local:append-param-value( $var as xs:string, $val as xs:string?, $str as xs:string? ) as xs:string? {
   if ($val) then
     let $bound := concat($var, '=')
     return
@@ -275,7 +275,7 @@ declare function view:field( $cmd as element(), $source as element(), $view as e
               return
                 if (exists($ext) or exists($source/@Filter)) then
                   attribute { 'param' } {
-                    let $filtered := local:append-param('filter', $source/@Filter, $f/xt:use/@param)
+                    let $filtered := local:append-param-value('filter', $source/@Filter, $f/xt:use/@param)
                     let $more := if (exists($ext)) then string-join($ext, ';') else ()
                     return
                       if ($filtered) then
@@ -322,20 +322,20 @@ declare function view:select2($cmd as element(), $source as element(), $view as 
           if ($viewField[@filter = 'no']) then
             $viewField/*
           else
-            let $sourceParams := data($source/@param)
+            let $sourceParams := if ($source/@param) then $source/@param else ''
+            (: empty sequence if an attribute doesn't exist, so also possible to use empty() :)
             let $viewXT := $viewField/xt:use
-            let $viewParamsData := data($viewXT/@param)
-            let $viewParams := if (empty($viewParamsData)) then '' else $viewParamsData
+            let $viewParams := if ($viewXT/@param) then $viewXT/@param else ''
             let $viewParamsRead := if ($goal eq 'read') then
               local:add-or-replace-param($viewParams, 'read-only=yes', false()) else $viewParams
             let $mergedParams := local:mergeParams($sourceParams, $viewParamsRead)
 
-            let $withSourceFilter := if ($source/@Filter) then local:append-param('filter', $source/@Filter, $mergedParams) else $mergedParams
+            let $withSourceFilter := if ($source/@Filter) then local:append-param-value('filter', $source/@Filter, $mergedParams) else $mergedParams
 
             let $withRequired := if ($source/@Required) then local:add-or-replace-param($withSourceFilter, 'required=true', false()) else $withSourceFilter
 
             let $lang := string($cmd/@lang)
-            let $withPLLoc :=  if ($source/@Placeholder-loc) then local:append-param($withRequired, concat('placeholder=', view:get-local-string($lang, $source/@Placeholder-loc)), true()) else $withRequired
+            let $withPLLoc :=  if ($source/@Placeholder-loc) then local:add-or-replace-param($withRequired, concat('placeholder=', view:get-local-string($lang, $source/@Placeholder-loc)), true()) else $withRequired
 
             let $finalParams := local:add-or-replace-param($withPLLoc, 'width=100%', true())
             return element xt:use {
