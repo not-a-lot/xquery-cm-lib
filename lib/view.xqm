@@ -316,20 +316,42 @@ declare function view:select2($cmd as element(), $source as element(), $view as 
         </xt:use>
     else (: need to read data from the model :)
       let $sourceKey := data($source/@Key)
-      let $sourceParams := data($source/@param)
-      let $viewParamsData := data($view/@Param)
-      let $viewParams := if (empty($viewParamsData)) then '' else $viewParamsData
-      let $viewParamsRead := if ($goal eq 'read') then
-        local:add-or-replace-param($viewParams, 'read-only=yes', false()) else $viewParams
-      let $mergedParams := local:mergeParams($sourceParams, $viewParamsRead)
-      let $finalParams := local:add-or-replace-param($mergedParams, 'width=100%', true())
-      let $xtUse := $view/site:select2[@Key = $sourceKey]/xt:use
-      return element xt:use {
-        attribute {"types"} {"select2"},
-        attribute {"label"} {$source/@Tag},
-        attribute {"param"} {$finalParams},
-        $xtUse/(@values|@default|@i18n)
-      }
+      let $viewField := $view/site:select2[@Key = $sourceKey]
+      return
+        if ($viewField) then
+          if ($viewField[@filter = 'no']) then
+            $viewField/*
+          else
+            let $sourceParams := data($source/@param)
+            let $viewXT := $viewField/xt:use
+            let $viewParamsData := data($viewXT/@param)
+            let $viewParams := if (empty($viewParamsData)) then '' else $viewParamsData
+            let $viewParamsRead := if ($goal eq 'read') then
+              local:add-or-replace-param($viewParams, 'read-only=yes', false()) else $viewParams
+            let $mergedParams := local:mergeParams($sourceParams, $viewParamsRead)
+
+            let $withSourceFilter := if ($source/@Filter) then local:append-param('filter', $source/@Filter, $mergedParams) else $mergedParams
+
+            let $withRequired := if ($source/@Required) then local:add-or-replace-param($withSourceFilter, 'required=true', false()) else $withSourceFilter
+
+            let $lang := string($cmd/@lang)
+            let $withPLLoc :=  if ($source/@Placeholder-loc) then local:append-param($withRequired, concat('placeholder=', view:get-local-string($lang, $source/@Placeholder-loc)), true()) else $withRequired
+
+            let $finalParams := local:add-or-replace-param($withPLLoc, 'width=100%', true())
+            return element xt:use {
+              attribute {"localized"} {"1"},
+              attribute {"types"} {"select2"},
+              attribute {"label"} {
+                if ($viewField/@label) then
+                  $viewField/@label
+                else
+                  $source/@Tag
+              },
+              attribute {"param"} {$finalParams},
+              $viewXT/(@values|@default|@i18n)
+            }
+        else
+          <xt:use types="constant" label="{$source/@Tag}" param="class=uneditable-input span a-control"/>
 };
 
 (: ======================================================================
