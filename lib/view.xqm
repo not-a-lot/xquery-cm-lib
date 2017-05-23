@@ -332,7 +332,7 @@ declare function view:select2($cmd as element(), $source as element(), $view as 
 
             let $withSourceFilter := if ($source/@Filter) then local:append-param-value('filter', $source/@Filter, $mergedParams) else $mergedParams
 
-            let $withRequired := if ($source/@Required) then local:add-or-replace-param($withSourceFilter, 'required=true', false()) else $withSourceFilter
+            let $withRequired := if ($source/@Required) then local:add-or-replace-param($withSourceFilter, 'required=true', false()) else $withSourceFilter (: @Required is added in the Supergrid XLST (Require binding) :)
 
             let $lang := string($cmd/@lang)
             let $withPLLoc :=  if ($source/@Placeholder-loc) then local:add-or-replace-param($withRequired, concat('placeholder=', view:get-local-string($lang, $source/@Placeholder-loc)), true()) else $withRequired

@@ -946,7 +946,7 @@
           </xsl:if>
           <xsl:value-of select="."/> <!-- This line simply copies the text inside the Select2 element to use it as a label -->
           <!-- This would be incompatible with the declaration mechanism which puts the values and i18n inside the
-          Select2 tag -->
+          Select2 tag, but we could add a Label tag, for instance -->
           <xsl:apply-templates select="/Form/Hints/Mandatory[contains(@Tags, $tag)]">
             <xsl:with-param name="key"><xsl:value-of select="$key"/></xsl:with-param>
           </xsl:apply-templates>
