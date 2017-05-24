@@ -119,7 +119,7 @@ span.town { /* Enterprise drop down complement */
   font-style: italic;
 }
 
-div.select2-drop-auto-width { /* overwrite select2 */
+div.select2old34-drop-auto-width { /* overwrite select2old34 */
   border-top: 1px solid #5897FB !important;
 }
 
@@ -359,11 +359,11 @@ input.fill {
   margin-bottom: 8px;
 }
 
-table div.select2-container { /* stats forms */
+table div.select2old34-container { /* stats forms */
   margin-bottom: 0;
 }
 
-div.select2-container { /* select2 exception */
+div.select2old34-container { /* select2old34 exception */
   margin-bottom: 10px;
 }
 
