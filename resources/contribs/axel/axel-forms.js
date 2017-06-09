@@ -2879,14 +2879,6 @@
         isFocusable: function () {
           return true;
         },
-
-        // Request to take focus (from tab navigation manager)
-        focus: function () {
-        },
-
-        // Request to leave focus (from tab navigation manager)
-        unfocus: function () {
-        },
       },
 
       /////////////////////////////
@@ -3015,6 +3007,8 @@
   );
 
   $axel.filter.applyTo({'event': 'select2'});
+  $axel.filter.applyTo({'optional': 'select2'});
+  // TODO : move these applyTo after their respective plugins when the AXEL and AXEL-FORMS are merged
 
 }($axel));
 /**
